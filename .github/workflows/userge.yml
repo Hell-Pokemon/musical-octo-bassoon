@@ -1,0 +1,53 @@
+name: setting up environment
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: 'README.md'
+  workflow_dispatch:
+    
+env:
+  GitHubMail: "iam.pro2@outlook.com"
+  GitHubName: "ProgrammingError" 
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+
+    steps:
+       - name: Checkout
+         uses: actions/checkout@main
+
+       - uses: styfle/cancel-workflow-action@0.9.0
+         name: "Cancel duplicate workflow runs"
+         with:
+            all_but_latest: true
+            access_token: ${{ github.token }}
+
+       - name: Set Git Configs & Secrets
+         run: |
+           git config --global user.email ${GitHubMail}
+           git config --global user.name ${GitHubName}
+           git config --global credential.helper store
+           echo "https://${GitHubName}:${{ secrets.GH_TOKEN }}@github.com" > ~/.git-credentials
+
+       - name: cloning repo
+         continue-on-error: false
+         run: |
+           git clone https://${GitHubName}:${{ secrets.GH_TOKEN }}@${{ secrets.CREDS }} userge
+       - name: Running Userge
+         timeout-minutes: 350
+         continue-on-error: true
+         run: |
+           sudo cp ./docker-compose.yml userge/docker-compose.yml
+           cd userge
+           docker-compose up -d
+           docker-compose logs -f
+       - name: Loop workflow
+         continue-on-error: true
+         run: |
+           git clone https://${{ secrets.GH_TOKEN }}@github.com/${GITHUB_REPOSITORY} loop
+           cd loop || exit 1
+           echo $(( RANDOM - ( RANDOM % RANDOM ) )) > looper.txt
+           git add looper.txt
+           git commit -m "Workflow : Loop at $(date -u +%D-%T%P)"
+           git push -q https://${{ secrets.GH_TOKEN }}@github.com/${GITHUB_REPOSITORY} HEAD:main
